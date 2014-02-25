@@ -28,6 +28,6 @@ public class Menu : MonoBehaviour
 
     void StartGame()
     {
-        
+        Controller.Instance.Init();
     }
 }
