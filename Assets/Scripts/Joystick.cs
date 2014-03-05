@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class Joystick : MonoBehaviour
+public class Joystick : ControllInput
 {
     public Texture JoyTexture
     {
@@ -24,63 +24,66 @@ public class Joystick : MonoBehaviour
     Texture ringTexture;
 
     [SerializeField]
-    Vector2 posOnScreen = new Vector2(0.1f, 0.1f);
+    float ringSize = 0.1f;
 
     [SerializeField]
-    float size = 0.1f;
+    float joySize = 0.04f;
 
+    Rect ringRect;
+    
+    float halfRectSizePixels = 40;
+
+    Vector2 joyRectOffset;
     Rect joyRect;
-    Vector2 posOnScreenInPixels;
-    float rectSizePixels;
-    float halfRectSizePixels;
 
 
     // Use this for initialization
     void Start()
     {
-        float halfSize = size * 0.5f;
-        posOnScreenInPixels = new Vector2(Screen.width * posOnScreen.x, Screen.height * posOnScreen.y);
+        Init();
+        float ringRectSizePixels = Screen.height * ringSize;
+        halfRectSizePixels = ringRectSizePixels / 2;
+        ringRect = new Rect(0, 0, ringRectSizePixels, ringRectSizePixels);
+        ringRect.center = posOnScreenInPixels;
 
-        Vector2 rectOffset = new Vector2(halfSize, -halfSize) * Screen.height;
-        rectSizePixels = Screen.height * size;
-        halfRectSizePixels = rectSizePixels * 0.5f;
-
-        Vector2 rectPos = posOnScreenInPixels - rectOffset;
-        joyRect = new Rect(rectPos.x, Screen.height - rectPos.y, rectSizePixels, rectSizePixels);
+        float joyRectSizeInPixels = Screen.height * joySize;
+        joyRect = new Rect(0, 0, joyRectSizeInPixels, joyRectSizeInPixels);
+        joyRect.center = posOnScreenInPixels;
     }
 
 
     void OnGUI()
     {
+        GUI.Label(ringRect, ringTexture);
+        if (Position != Vector2.zero)
+        {
+            joyRect.center = InvertYpos;
+        }
+        else
+            joyRect.center = posOnScreenInPixels;
         GUI.Label(joyRect, joyTexture);
     }
 
     // Update is called once per frame
     void Update()
     {
-        Vector2 pos = Vector2.zero;
-#if UNITY_EDITOR || UNITY_STANDALONE
-        pos = Input.mousePosition;
-#else
-        if (Input.touches.Length == 0) return;
-        var touch = Input.touches[0];
-        pos = touch.position;
-#endif
-        if (pos == Vector2.zero)
+        //print(Position);
+
+
+        if (Pos == Vector2.zero)
         {
             Position = Vector2.zero;
             return;
         }
 
-        Vector2 posRelJoyCenter = -(posOnScreenInPixels - pos);
+        Vector2 posRelJoyCenter = new Vector2( posOnScreenInPixels.x, Screen.height - posOnScreenInPixels.y) - Pos;
         if (posRelJoyCenter.magnitude > halfRectSizePixels)
         {
             Position = Vector2.zero;
             return;
         }
         else
-            Position = posRelJoyCenter / halfRectSizePixels;
+            Position = -posRelJoyCenter / halfRectSizePixels;
 
-        print(Position);
     }
 }

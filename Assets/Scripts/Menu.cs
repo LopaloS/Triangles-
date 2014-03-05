@@ -7,6 +7,9 @@ public class Menu : MonoBehaviour
     Joystick joystick;
 
     [SerializeField]
+    Button button;
+
+    [SerializeField]
     WorldDrawer worldDrawer;
 
     Vector2 buttonsSize = new Vector2(200, 50);
@@ -28,6 +31,23 @@ public class Menu : MonoBehaviour
 
     void StartGame()
     {
-        Controller.Instance.Init();
+        //Controller.Instance.Init();
+
+        CreateControls();
+    }
+
+    void CreateControls()
+    {
+        var texGenerator = new CircleTextureGenerator();
+        if (joystick != null)
+        {
+            joystick.RingTexture = texGenerator.GetTexture(256, 120, Color.white);
+            joystick.JoyTexture = texGenerator.GetTexture(64, 0, Color.white);
+        }
+
+        if (button != null)
+        {
+            button.Texture = texGenerator.GetTexture(80, 0, Color.white);
+        }
     }
 }
