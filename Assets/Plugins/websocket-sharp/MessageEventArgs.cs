@@ -62,7 +62,7 @@ namespace WebSocketSharp
       _data = convertToString (opcode, data);
     }
 
-    internal MessageEventArgs (Opcode opcode, PayloadData payload)
+    public MessageEventArgs (Opcode opcode, PayloadData payload)
     {
       _opcode = opcode;
       _rawData = payload.ApplicationData;

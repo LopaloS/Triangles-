@@ -16,6 +16,7 @@ public class Joystick : ControllInput
 
     public Vector2 Position { get; private set; }
     public float Angle { get; private set; }
+    public event System.Action<Vector2> SendPosition;
 
     [SerializeField]
     Texture joyTexture;
@@ -78,12 +79,11 @@ public class Joystick : ControllInput
 
         Vector2 posRelJoyCenter = new Vector2( posOnScreenInPixels.x, Screen.height - posOnScreenInPixels.y) - Pos;
         if (posRelJoyCenter.magnitude > halfRectSizePixels)
-        {
             Position = Vector2.zero;
-            return;
-        }
         else
             Position = -posRelJoyCenter / halfRectSizePixels;
 
+        if (SendPosition != null)
+            SendPosition(Position);
     }
 }

@@ -36,6 +36,5 @@ public class Button : ControllInput
             IsPresed = true;
         else
             IsPresed = false;
-        print(IsPresed);
     }
 }

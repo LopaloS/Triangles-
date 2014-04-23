@@ -35,7 +35,7 @@ using System.Text;
 
 namespace WebSocketSharp
 {
-  internal class PayloadData : IEnumerable<byte>
+  public class PayloadData : IEnumerable<byte>
   {
     #region Public Const Fields
 

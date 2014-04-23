@@ -31,8 +31,7 @@ public class Menu : MonoBehaviour
 
     void StartGame()
     {
-        //Controller.Instance.Init();
-
+        NetworkController.Instance.Init();
         CreateControls();
     }
 
@@ -43,6 +42,7 @@ public class Menu : MonoBehaviour
         {
             joystick.RingTexture = texGenerator.GetTexture(256, 120, Color.white);
             joystick.JoyTexture = texGenerator.GetTexture(64, 0, Color.white);
+            joystick.SendPosition += NetworkController.Instance.SendMoveVector;
         }
 
         if (button != null)
