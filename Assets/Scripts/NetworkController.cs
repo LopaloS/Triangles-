@@ -18,28 +18,55 @@ public class NetworkController
     }
     static NetworkController instance;
 
-    public Action<Dictionary<string, object>> UpdateScene;
+    public event Action<Dictionary<string, object>> UpdateScene;
+    public event Action OnInit;
+
+    public Dictionary<string, object> Data
+    {
+        get
+        {
+            var dataQueue = Queue.Synchronized(NetworkController.Instance.dataQueue);
+            if (dataQueue.Count == 0) return null;
+            var obj = dataQueue.Dequeue();
+            if (obj == null) return null;
+            return (Dictionary<string, object>)obj;
+        }
+    }
 
     JsonReader jsonReader;
+    JsonWriter jsonWriter; 
     WebSocket webSocket;
+    Queue dataQueue;
 
     FakeConection fakeConection;
-    bool debug = true;
+    bool debug = false;
 
     NetworkController()
     {
+        dataQueue = new Queue();
     }
 
     public void Init()
     {
-        //webSocket = new WebSocket("ws://89.252.17.39:9000/");
+        webSocket = new WebSocket("ws://89.252.17.39:9000/");
 
-        //webSocket.OnOpen += (o, e) =>
-        //{
-        //    Debug.Log("Open");
-        //};
-        //webSocket.OnMessage += OnMessageHandler; 
-        //webSocket.Connect();
+        webSocket.OnOpen += (o, e) =>
+        {
+            Debug.Log("Open");
+
+            var dataDict = new Dictionary<string, object>();
+            dataDict.Add("cmd", "world.start");
+            var nameDict = new Dictionary<string, string>();
+            nameDict.Add("name", "Slava"); // cleanup
+            dataDict.Add("args", nameDict);
+
+            jsonWriter = new JsonWriter();
+            jsonReader = new JsonReader();
+            webSocket.Send(jsonWriter.Write(dataDict));
+        };
+        webSocket.OnMessage += OnMessageHandler;
+        webSocket.Connect();
+
 
         if (debug)
         {
@@ -61,8 +88,8 @@ public class NetworkController
         args.Add("move_vector", vec);
         message.Add("args", args);
 
-        var writer = new JsonWriter();
-        string stringMessage = writer.Write(message);
+        jsonWriter = new JsonWriter();
+        string stringMessage = jsonWriter.Write(message);
         //webSocket.Send(stringMessage);
         if (debug && fakeConection != null)
             fakeConection.Send(stringMessage);
@@ -71,11 +98,20 @@ public class NetworkController
     void OnMessageHandler(object sender, MessageEventArgs args)
     {
         string data = args.Data;
-        var tempDict = jsonReader.Read(data, typeof(Dictionary<string, object>)) as Dictionary<string, object>;
-
+        Debug.Log(data);
+        var tempDict = jsonReader.Read<Dictionary<string, object>>(data);
+        
         switch ((string)tempDict["cmd"])
         {
             case "world.init":
+                if (OnInit != null)
+                {
+                    dataQueue.Enqueue(tempDict["args"]);
+                    OnInit();
+                }
+                break;
+            case "world.tick":
+                dataQueue.Enqueue(tempDict["args"]);
                 break;
         }
     }

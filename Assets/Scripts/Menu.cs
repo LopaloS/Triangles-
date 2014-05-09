@@ -15,6 +15,7 @@ public class Menu : MonoBehaviour
     Vector2 buttonsSize = new Vector2(200, 50);
     float buttonStep = 0.1f;
     Rect buttonRect;
+    bool startGame = false;
 
 	// Use this for initialization
 	void Start () 
@@ -25,7 +26,7 @@ public class Menu : MonoBehaviour
 	
 	void OnGUI () 
     {
-	    if(GUI.Button(buttonRect, "Start game"))
+	    if(!startGame && GUI.Button(buttonRect, "Start game"))
             StartGame();
 	}
 
@@ -33,6 +34,7 @@ public class Menu : MonoBehaviour
     {
         NetworkController.Instance.Init();
         CreateControls();
+        startGame = true;
     }
 
     void CreateControls()

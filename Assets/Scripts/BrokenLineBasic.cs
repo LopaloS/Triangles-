@@ -21,13 +21,15 @@ public class BrokenLineBasic : MonoBehaviour
     MeshFilter mesh;
     MeshRenderer meshRend;
 
-	public void CreateLine () 
+    void Awake()
     {
         mesh = GetComponent<MeshFilter>();
         meshRend = GetComponent<MeshRenderer>();
-
         meshRend.material.color = color;
+    }
 
+	public void CreateLine () 
+    {
         vert.Clear();
         uvs.Clear();
         triangles.Clear();
@@ -170,7 +172,7 @@ public class BrokenLineBasic : MonoBehaviour
         newMesh.vertices = newVert;
         newMesh.triangles = newTriangles;
         newMesh.uv = newUVs;
-
+        
         mesh.sharedMesh = newMesh;
     }
 }
