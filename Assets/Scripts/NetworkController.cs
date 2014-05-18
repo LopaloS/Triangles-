@@ -39,6 +39,7 @@ public class NetworkController
     Queue dataQueue;
 
     FakeConection fakeConection;
+    bool isInit = false;
     bool debug = false;
 
     NetworkController()
@@ -46,9 +47,9 @@ public class NetworkController
         dataQueue = new Queue();
     }
 
-    public void Init()
+    public void Init(string url, string playerName)
     {
-        webSocket = new WebSocket("ws://89.252.17.39:9000/");
+        webSocket = new WebSocket(url);
 
         webSocket.OnOpen += (o, e) =>
         {
@@ -57,7 +58,7 @@ public class NetworkController
             var dataDict = new Dictionary<string, object>();
             dataDict.Add("cmd", "world.start");
             var nameDict = new Dictionary<string, string>();
-            nameDict.Add("name", "Slava"); // cleanup
+            nameDict.Add("name", playerName);
             dataDict.Add("args", nameDict);
 
             jsonWriter = new JsonWriter();
@@ -77,20 +78,30 @@ public class NetworkController
         }
     }
 
+    public void CloseConnection()
+    {
+        if (webSocket != null)
+            webSocket.Close();
+    }
+
     public void SendMoveVector(Vector2 pos)
     {
         float[] vec = new float[2];
-        vec[0] = Mathf.Atan2(pos.y, pos.x) * Mathf.Rad2Deg;
-        vec[1] = pos.magnitude;
+        vec[0] = pos.magnitude;
+        vec[1] = Mathf.Atan2(pos.y, pos.x) * Mathf.Rad2Deg;
+        Debug.Log(vec[1]);
         var message = new Dictionary<string, object>();
         message.Add("cmd", "user.commands");
         var args = new Dictionary<string, object>();
         args.Add("move_vector", vec);
+        args.Add("fire", false);
         message.Add("args", args);
 
         jsonWriter = new JsonWriter();
         string stringMessage = jsonWriter.Write(message);
-        //webSocket.Send(stringMessage);
+        
+        if (webSocket == null) return;
+        webSocket.Send(stringMessage);
         if (debug && fakeConection != null)
             fakeConection.Send(stringMessage);
     }
@@ -106,12 +117,15 @@ public class NetworkController
             case "world.init":
                 if (OnInit != null)
                 {
-                    dataQueue.Enqueue(tempDict["args"]);
+                    dataQueue.Enqueue(tempDict);
                     OnInit();
+                    isInit = true;
                 }
                 break;
             case "world.tick":
-                dataQueue.Enqueue(tempDict["args"]);
+            case "scores.update":
+                if(isInit)
+                    dataQueue.Enqueue(tempDict);
                 break;
         }
     }

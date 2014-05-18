@@ -13,27 +13,71 @@ public class Menu : MonoBehaviour
     WorldDrawer worldDrawer;
 
     Vector2 buttonsSize = new Vector2(200, 50);
-    float buttonStep = 0.1f;
+    Vector2 nameLabelSize = new Vector2(40, 30);
+    Vector2 nameFieldSize = new Vector2(200, 25);
+    Vector2 addressLabelSize = new Vector2(50, 30);
+    Vector2 addressFieldSize = new Vector2(400, 25);
+
     Rect buttonRect;
+    Rect nameLabel;
+    Rect nameField;
+    Rect addressLabel;
+    Rect addressField;
+
+    string address = "ws://89.252.17.39:9000/";
+    string playerName = string.Empty;
+    bool isInit = false;
     bool startGame = false;
 
 	// Use this for initialization
 	void Start () 
     {
-        buttonRect = new Rect(Screen.width/2 - buttonsSize.x/2, Screen.height * 0.2f, buttonsSize.x, buttonsSize.y);
+        addressLabel = GetWidgetRect(addressLabelSize, 0.1f);
+        addressField = GetWidgetRect(addressFieldSize, 0.14f);
+        nameLabel = GetWidgetRect(nameLabelSize, 0.2f);
+        nameField = GetWidgetRect(nameFieldSize, 0.24f);
+        
+        buttonRect = GetWidgetRect(buttonsSize, 0.5f);
 	}
-	
+
+    Rect GetWidgetRect(Vector2 size, float yPos)
+    {
+        return new Rect(Screen.width / 2 - size.x / 2, Screen.height * yPos, size.x, size.y);
+    }
 	
 	void OnGUI () 
     {
-	    if(!startGame && GUI.Button(buttonRect, "Start game"))
-            StartGame();
+        if (!startGame)
+        {
+            GUI.Label(addressLabel, "Address");
+            address = GUI.TextField(addressField, address);
+            playerName = GUI.TextField(nameField, playerName);
+
+            GUI.Label(nameLabel, "Name");
+
+            if (GUI.Button(buttonRect, "Connect"))
+                StartGame();
+        } 
 	}
+    IEnumerator WaitInit()
+    {
+        NetworkController.Instance.OnInit += Init;
+        while (!isInit)
+            yield return null;
+
+        CreateControls();
+        worldDrawer.Init();
+    }
+
+    void Init()
+    {
+        isInit = true;
+    }
 
     void StartGame()
     {
-        NetworkController.Instance.Init();
-        CreateControls();
+        StartCoroutine(WaitInit());
+        NetworkController.Instance.Init(address, playerName);
         startGame = true;
     }
 
@@ -51,5 +95,10 @@ public class Menu : MonoBehaviour
         {
             button.Texture = texGenerator.GetTexture(80, 0, Color.white);
         }
+    }
+
+    void OnDestroy()
+    {
+        NetworkController.Instance.CloseConnection();
     }
 }
