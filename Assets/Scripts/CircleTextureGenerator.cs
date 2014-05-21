@@ -19,7 +19,7 @@ public class CircleTextureGenerator
                 Vector2 curPixel = new Vector2(i, j);
                 float sqrDist = (curPixel - center).sqrMagnitude;
 
-                if (sqrDist > sqrInnerRad && sqrDist < sqrHalfSize)
+                if (sqrDist >= sqrInnerRad && sqrDist < sqrHalfSize)
                     texture.SetPixel(i, j, color);
                 else
                     texture.SetPixel(i, j, colorA);

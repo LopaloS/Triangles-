@@ -16,6 +16,8 @@ public class WorldDrawer : MonoBehaviour
     Transform levelTransform;
     BrokenLineBasic brokenLine;
     Material material;
+    Material bulletMaterial;
+    Texture bulletTex;
 
     Vector2 rectSize = new Vector2(1000, 700);
     Vector2 spaceShipSize = new Vector2(10, 20);
@@ -27,6 +29,7 @@ public class WorldDrawer : MonoBehaviour
     float labelNameOffset = 20;
 
     Dictionary<string, PlayerData> players = new Dictionary<string, PlayerData>();
+    Dictionary<string, Transform> bullets = new Dictionary<string, Transform>();
 
     // Use this for initialization
     void Start()
@@ -38,6 +41,13 @@ public class WorldDrawer : MonoBehaviour
         material = new Material(shader);
         material.SetTexture("_MainTex", texture);
         material.color = Color.white;
+
+        var texGenerator = new CircleTextureGenerator();
+        bulletTex = texGenerator.GetTexture(16, 0, Color.white);
+        bulletMaterial = new Material(shader);
+        bulletMaterial.SetTexture("_MainTex", bulletTex);
+        bulletMaterial.color = Color.white;
+
         var meshRenderer = levelRect.GetComponent<MeshRenderer>();
         meshRenderer.material = material;
 
@@ -93,9 +103,9 @@ public class WorldDrawer : MonoBehaviour
     {
         List<Vector2> verts = new List<Vector2>();
         verts.Add(center);
-        verts.Add(new Vector2(verts[0].x, verts[0].y + rectSize.y));
-        verts.Add(verts[0] + rectSize);
-        verts.Add(new Vector2(verts[0].x + rectSize.x, verts[0].y));
+        verts.Add(new Vector2(verts[0].x, verts[0].y + size.y));
+        verts.Add(verts[0] + size);
+        verts.Add(new Vector2(verts[0].x + size.x, verts[0].y));
         verts.Add(verts[0] + Vector2.right * (brokenLine.widthLine / 2));
         return verts;
     }
@@ -133,17 +143,17 @@ public class WorldDrawer : MonoBehaviour
         var mesh = new Mesh();
         var bulletSize = Vector2.one * 0.03f;
         Vector2[] verts2 = GetRect(bulletSize, bulletSize * 0.5f).ToArray();
-        Vector3[] verts3 = new Vector3[verts2.Length];
-        for (int i = 0; i < verts2.Length; i++)
+        Vector3[] verts3 = new Vector3[4];
+        for (int i = 0; i < verts3.Length; i++)
         {
             verts3[i] = new Vector3(verts2[i].x, verts2[i].y, 0);
         }
 
-        Vector2[] uvs = new Vector2[3];
+        Vector2[] uvs = new Vector2[4];
         uvs[0] = Vector2.zero;
         uvs[1] = Vector2.up;
-        uvs[2] = Vector2.right;
-        uvs[3] = Vector2.one;
+        uvs[2] = Vector2.one;
+        uvs[3] = Vector2.right;
 
         mesh.vertices = verts3;
         mesh.triangles = new int[] { 0, 1, 2, 0, 2, 3 };
@@ -151,7 +161,7 @@ public class WorldDrawer : MonoBehaviour
 
         bullet.transform.parent = levelRect.transform;
         bullet.GetComponent<MeshFilter>().sharedMesh = mesh;
-        bullet.GetComponent<MeshRenderer>().material = material;
+        bullet.GetComponent<MeshRenderer>().material = bulletMaterial;
         return bullet;
     }
 
@@ -195,14 +205,8 @@ public class WorldDrawer : MonoBehaviour
                 }
                 var tr = players[kvp.Key].Transform;
                 var tempTransformData = (Dictionary<string, object>)kvp.Value;
-                Vector2 pos = Vector2.zero;
-
-                if (tempTransformData["pos"] is int[])
-                {
-                    var tempPos = (int[])tempTransformData["pos"];
-                    pos = new Vector2(tempPos[0], tempPos[1]) / pixelInUnits;
-                }
-                tr.localPosition = pos;
+                
+                tr.localPosition = GetPosFromObj(tempTransformData["pos"]);
                 if (kvp.Key == userId)
                     transform.position = new Vector3(tr.position.x, tr.position.y, transform.position.z);
                 float angle = 0;
@@ -211,7 +215,42 @@ public class WorldDrawer : MonoBehaviour
                 tr.up = Quaternion.Euler(new Vector3(0, 0, angle)) * Vector3.right;
             }
         }
+
+        if (data.ContainsKey("bullets") && data["bullets"] is Dictionary<string, object>)
+        {
+            var bulletsDict = (Dictionary<string, object>)data["bullets"];
+            var bulletsDictSet = new HashSet<string>(bulletsDict.Keys);
+            var bulletsSet = new HashSet<string>(bullets.Keys);
+            bulletsSet.ExceptWith(bulletsDictSet);
+
+            foreach (var id in bulletsSet)
+            {
+                Destroy(bullets[id].gameObject);
+                bullets.Remove(id);
+            }
+
+            foreach (var kvp in bulletsDict)
+            {
+                if (!bullets.ContainsKey(kvp.Key))
+                    bullets.Add(kvp.Key, CreateBullet().transform);
+
+                var pos = GetPosFromObj(kvp.Value);
+                if(pos != Vector2.zero)
+                    bullets[kvp.Key].localPosition = pos;
+            }
+        }
         RequestUnknownObjs(unknownObjs);
+    }
+
+    Vector2 GetPosFromObj(object obj)
+    {
+        print(obj.GetType());
+        if (obj is int[])
+        {
+            var tempPos = (int[])obj;
+            return new Vector2(tempPos[0], tempPos[1]) / pixelInUnits;
+        }
+        return Vector2.zero;
     }
 
     void UpdateScores(Dictionary<string, object> data)

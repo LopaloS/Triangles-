@@ -89,12 +89,11 @@ public class NetworkController
         float[] vec = new float[2];
         vec[0] = pos.magnitude;
         vec[1] = Mathf.Atan2(pos.y, pos.x) * Mathf.Rad2Deg;
-        Debug.Log(vec[1]);
         var message = new Dictionary<string, object>();
         message.Add("cmd", "user.commands");
         var args = new Dictionary<string, object>();
         args.Add("move_vector", vec);
-        args.Add("fire", false);
+        args.Add("fire", true);
         message.Add("args", args);
 
         jsonWriter = new JsonWriter();

@@ -24,7 +24,7 @@ public class Menu : MonoBehaviour
     Rect addressLabel;
     Rect addressField;
 
-    string address = "ws://89.252.17.39:9000/";
+    string address = "ws://localhost:9000/"; //"ws://89.252.17.39:9000/";
     string playerName = string.Empty;
     bool isInit = false;
     bool startGame = false;
