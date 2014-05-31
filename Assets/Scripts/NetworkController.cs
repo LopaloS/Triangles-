@@ -96,9 +96,24 @@ public class NetworkController
         args.Add("fire", true);
         message.Add("args", args);
 
-        jsonWriter = new JsonWriter();
+        SendObject(message);
+    }
+
+    public void RequestUnknownObjs(List<string> ids)
+    {
+        var message = new Dictionary<string, object>();
+        message.Add("cmd", "world.get_objects_info");
+        var identsDict = new Dictionary<string, object>();
+        identsDict.Add("idents", ids);
+        message.Add("args", identsDict);
+
+        SendObject(message);
+    }
+
+    void SendObject(object message)
+    {
         string stringMessage = jsonWriter.Write(message);
-        
+
         if (webSocket == null) return;
         webSocket.Send(stringMessage);
         if (debug && fakeConection != null)
@@ -108,8 +123,10 @@ public class NetworkController
     void OnMessageHandler(object sender, MessageEventArgs args)
     {
         string data = args.Data;
-        Debug.Log(data);
+        
         var tempDict = jsonReader.Read<Dictionary<string, object>>(data);
+        if ((string)tempDict["cmd"] != "world.tick")
+            Debug.Log(data);
         
         switch ((string)tempDict["cmd"])
         {
@@ -123,6 +140,7 @@ public class NetworkController
                 break;
             case "world.tick":
             case "scores.update":
+            case "world.objects_info":
                 if(isInit)
                     dataQueue.Enqueue(tempDict);
                 break;

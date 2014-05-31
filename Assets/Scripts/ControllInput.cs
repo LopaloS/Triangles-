@@ -10,7 +10,7 @@ public class ControllInput : MonoBehaviour
 #if UNITY_EDITOR || UNITY_STANDALONE
             pos = Input.mousePosition;
 #else
-        if (Input.touches.Length == 0) return;
+        if (Input.touches.Length == 0) return Vector2.zero;
         var touch = Input.touches[0];
         pos = touch.position;
 #endif

@@ -70,23 +70,27 @@ public class WorldDrawer : MonoBehaviour
 
         userId = (string)dataDict["uid"];
         int[] levelSize = (int[])dataDict["level_size"];
-        print(levelSize[0].GetType());
         rectSize = new Vector2(levelSize[0], levelSize[1]);
         rectSize /= pixelInUnits;
 
         CreateLevelRect();
         var objectsDict = (Dictionary<string, object>)dataDict["objects"];
+        AddObjects(objectsDict);
+        StartCoroutine(UpdateScene());
+    }
+
+    void AddObjects(Dictionary<string, object> objectsDict)
+    {
         foreach (var kvp in objectsDict)
         {
             if (!players.ContainsKey(kvp.Key))
             {
                 var playerDataDict = (Dictionary<string, object>)kvp.Value;
                 var tr = CreateSpaceShip().transform;
-                var pData = new PlayerData((string)playerDataDict["name"],tr);
-                players[kvp.Key] = pData; 
+                var pData = new PlayerData((string)playerDataDict["name"], tr);
+                players.Add(kvp.Key, pData);
             }
         }
-        StartCoroutine(UpdateScene());
     }
 
     void CreateLevelRect()
@@ -179,14 +183,27 @@ public class WorldDrawer : MonoBehaviour
             }
             while (data == null);
             var args = (Dictionary<string, object>)data["args"];
+            var cmd = (string)data["cmd"];
 
-            if ((string)data["cmd"] == "world.tick")
+            if (cmd == "world.tick")
                 UpdateObjTransforms(args);
 
-            if ((string)data["cmd"] == "scores.update")
+            if (cmd == "scores.update")
                 UpdateScores(args);
+            
+            if (cmd == "world.objects_info")
+                AddPlayers(args);
 
             yield return null;
+        }
+    }
+
+    void AddPlayers(Dictionary<string, object> data)
+    {
+        if (data.ContainsKey("objects") && data["objects"] is Dictionary<string, object>)
+        {
+            var objectsDict = (Dictionary<string, object>)data["objects"];
+            AddObjects(objectsDict);
         }
     }
 
@@ -239,12 +256,11 @@ public class WorldDrawer : MonoBehaviour
                     bullets[kvp.Key].localPosition = pos;
             }
         }
-        RequestUnknownObjs(unknownObjs);
+        NetworkController.Instance.RequestUnknownObjs(unknownObjs);
     }
 
     Vector2 GetPosFromObj(object obj)
     {
-        print(obj.GetType());
         if (obj is int[])
         {
             var tempPos = (int[])obj;
@@ -258,7 +274,8 @@ public class WorldDrawer : MonoBehaviour
         var scoresDict = (Dictionary<string, object>)data["scores"];
         foreach (var player in players.Values)
         {
-            player.Score = (int)scoresDict[player.Name];
+            if(scoresDict.ContainsKey(player.Name))
+                player.Score = (int)scoresDict[player.Name];
         }
     }
 
@@ -275,11 +292,6 @@ public class WorldDrawer : MonoBehaviour
             labelNameRect.center = new Vector2(screenPos.x , Screen.height - screenPos.y - labelNameOffset);
             GUI.Label(labelNameRect, val.Name);
         }
-    }
-
-    void RequestUnknownObjs(List<string> ids)
-    {
-
     }
 }
 
