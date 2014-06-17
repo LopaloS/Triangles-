@@ -19,6 +19,7 @@ public class WorldDrawer : MonoBehaviour
     Material bulletMaterial;
     Texture bulletTex;
 
+    float serverTick = 200;
     Vector2 rectSize = new Vector2(1000, 700);
     Vector2 spaceShipSize = new Vector2(10, 20);
     
@@ -27,6 +28,8 @@ public class WorldDrawer : MonoBehaviour
 
     Rect scoreRect = new Rect(10, 10, 150, 25);
     float labelNameOffset = 20;
+
+    GUIStyle playerLabelStyle;
 
     Dictionary<string, PlayerData> players = new Dictionary<string, PlayerData>();
     Dictionary<string, Transform> bullets = new Dictionary<string, Transform>();
@@ -57,9 +60,7 @@ public class WorldDrawer : MonoBehaviour
             brokenLine = levelRect.GetComponent<BrokenLineBasic>();
         }
 
-        //if (spaceShipPrototype != null)
-            //CreateSpaceShip();
-
+        
     }
 
     
@@ -70,6 +71,8 @@ public class WorldDrawer : MonoBehaviour
 
         userId = (string)dataDict["uid"];
         int[] levelSize = (int[])dataDict["level_size"];
+        int serverTickInt = (int)dataDict["server_tick"];
+        serverTick = (float)serverTickInt / 1000;
         rectSize = new Vector2(levelSize[0], levelSize[1]);
         rectSize /= pixelInUnits;
 
@@ -172,27 +175,64 @@ public class WorldDrawer : MonoBehaviour
 
     IEnumerator UpdateScene()
     {
+        Dictionary<string, object> data;
+        Dictionary<string, object> curObjectsData = null;
+        Dictionary<string, object> curBulletsData = null;
+        Dictionary<string, object> prevObjectsData = null;
+        Dictionary<string, object> prevBulletsData = null;
+        float interpolateStep = 0.2f;
+        float curLerpPos = 0;
+        bool updateDicts = true;
+
         while (true)
         {
-            
-            Dictionary<string, object> data;
-            do
+            data = NetworkController.Instance.Data;
+
+            if (data != null)
             {
-                data = NetworkController.Instance.Data;
-                yield return null;
+                var args = (Dictionary<string, object>)data["args"];
+                var cmd = (string)data["cmd"];
+
+                if (cmd == "world.tick")
+                {
+                    interpolateStep = 1f /(serverTick / Time.deltaTime);
+                    curLerpPos = 0;
+                    updateDicts = true;
+                    if (args.ContainsKey("objects"))
+                    {
+                        prevObjectsData = curObjectsData;
+                        curObjectsData = (Dictionary<string, object>)args["objects"];
+
+                        var unknownObjs = new List<string>();
+                        foreach (var kvp in curObjectsData)
+                        {
+                            if (!players.ContainsKey(kvp.Key))
+                                unknownObjs.Add(kvp.Key); 
+                        }
+                        NetworkController.Instance.RequestUnknownObjs(unknownObjs);
+                    }
+                    if (args.ContainsKey("bullets") && args["bullets"] is Dictionary<string, object>)
+                    {
+                        prevBulletsData = curBulletsData;
+                        curBulletsData = (Dictionary<string, object>)args["bullets"];
+                    }
+                    else curBulletsData = null;
+                }
+
+                if (cmd == "scores.update")
+                    UpdateScores(args);
+
+                if (cmd == "world.objects_info")
+                    AddPlayers(args);
             }
-            while (data == null);
-            var args = (Dictionary<string, object>)data["args"];
-            var cmd = (string)data["cmd"];
 
-            if (cmd == "world.tick")
-                UpdateObjTransforms(args);
-
-            if (cmd == "scores.update")
-                UpdateScores(args);
-            
-            if (cmd == "world.objects_info")
-                AddPlayers(args);
+            curLerpPos += interpolateStep;
+            if (curObjectsData != null)
+            {
+                
+                UpdateObjTransforms(prevObjectsData, prevBulletsData, curObjectsData, curBulletsData, curLerpPos, updateDicts);
+                updateDicts = false;
+            }
 
             yield return null;
         }
@@ -207,56 +247,113 @@ public class WorldDrawer : MonoBehaviour
         }
     }
 
-    void UpdateObjTransforms(Dictionary<string, object> data)
+    void UpdateObjTransforms(Dictionary<string, object> prevObjectsData, Dictionary<string, object> prevBulletsData,
+        Dictionary<string, object> objectsData, Dictionary<string, object> bulletsData, float t, bool updateDicts)
     {
-        var unknownObjs = new List<string>();
-        if (data.ContainsKey("objects"))
+        LerpObjects(prevObjectsData, objectsData, t);
+        if (updateDicts)
         {
-            var objects = (Dictionary<string, object>)data["objects"];
-            foreach (var kvp in objects)
+            foreach (var playerKey in GetDiffKeys(players.Keys, objectsData.Keys))
             {
-                if (!players.ContainsKey(kvp.Key))
+                if (!objectsData.ContainsKey(playerKey))
                 {
-                    unknownObjs.Add(kvp.Key);
-                    continue;
+                    Destroy(players[playerKey].Transform.gameObject);
+                    players.Remove(playerKey);
                 }
-                var tr = players[kvp.Key].Transform;
-                var tempTransformData = (Dictionary<string, object>)kvp.Value;
-                
-                tr.localPosition = GetPosFromObj(tempTransformData["pos"]);
-                if (kvp.Key == userId)
-                    transform.position = new Vector3(tr.position.x, tr.position.y, transform.position.z);
-                float angle = 0;
-                if (tempTransformData["angle"] is double)
-                    angle = (float)(double)tempTransformData["angle"];
-                tr.up = Quaternion.Euler(new Vector3(0, 0, angle)) * Vector3.right;
             }
         }
 
-        if (data.ContainsKey("bullets") && data["bullets"] is Dictionary<string, object>)
+        if (bulletsData != null && bulletsData.Count > 0)
+            LerpBullets(prevBulletsData, bulletsData, t);
+        else if (updateDicts)
         {
-            var bulletsDict = (Dictionary<string, object>)data["bullets"];
-            var bulletsDictSet = new HashSet<string>(bulletsDict.Keys);
-            var bulletsSet = new HashSet<string>(bullets.Keys);
-            bulletsSet.ExceptWith(bulletsDictSet);
+            foreach (var bullet in bullets.Values)
+            {
+                Destroy(bullet.gameObject);
+            }
+            bullets.Clear();
+        }
+    }
 
-            foreach (var id in bulletsSet)
+    void LerpObjects(Dictionary<string, object> prevObjectsData, Dictionary<string, object> objectsData, float t)
+    {
+        foreach (var kvp in objectsData)
+        {
+            if (!players.ContainsKey(kvp.Key))
+                continue;
+            var tr = players[kvp.Key].Transform;
+            var tempTransformData = (Dictionary<string, object>)kvp.Value;
+            Dictionary<string, object> tempPrevTransformData = null;
+            
+            if (prevObjectsData != null && prevObjectsData.ContainsKey(kvp.Key))
+            {
+                tempPrevTransformData = (Dictionary<string, object>)prevObjectsData[kvp.Key];
+
+                var prevPos = GetPosFromObj(tempPrevTransformData["pos"]);
+                var curPos = GetPosFromObj(tempTransformData["pos"]);
+                tr.localPosition = Vector3.Lerp(prevPos, curPos, t);
+            }
+            else
+                tr.localPosition = GetPosFromObj(tempTransformData["pos"]);
+
+            if (kvp.Key == userId)
+                transform.position = new Vector3(tr.position.x, tr.position.y, transform.position.z);
+            float angle = 0;
+            float prevAngle = 0;
+            Quaternion curRot = Quaternion.identity;
+            if (tempTransformData["angle"] is double)
+            {
+                angle = (float)(double)tempTransformData["angle"];
+                if (prevObjectsData != null)
+                {
+                    if (tempPrevTransformData["angle"] is double)
+                        prevAngle = (float)(double)tempPrevTransformData["angle"];
+                    else
+                        prevAngle = angle;
+                    angle = Mathf.LerpAngle(prevAngle, angle, t);
+                }
+            }
+            curRot = Quaternion.Euler(new Vector3(0, 0, angle));            
+            tr.up = curRot * Vector3.right;
+        }
+    }
+
+    void LerpBullets(Dictionary<string, object> prevBulletsData, Dictionary<string, object> bulletsData, float t)
+    {
+        foreach (var kvp in bulletsData)
+        {
+            if (!bullets.ContainsKey(kvp.Key))
+                bullets.Add(kvp.Key, CreateBullet().transform);
+
+            var pos = GetPosFromObj(kvp.Value);
+            
+            if (pos != Vector2.zero)
+            {
+                if (prevBulletsData != null && prevBulletsData.ContainsKey(kvp.Key))
+                {
+                    var prevPos = GetPosFromObj(prevBulletsData[kvp.Key]);
+                    bullets[kvp.Key].localPosition = Vector3.Lerp(prevPos, pos, t);
+                }
+                else
+                    bullets[kvp.Key].localPosition = pos;
+            }
+        }
+        if (prevBulletsData != null)
+        {
+            foreach (var id in GetDiffKeys(bullets.Keys, prevBulletsData.Keys))
             {
                 Destroy(bullets[id].gameObject);
                 bullets.Remove(id);
             }
-
-            foreach (var kvp in bulletsDict)
-            {
-                if (!bullets.ContainsKey(kvp.Key))
-                    bullets.Add(kvp.Key, CreateBullet().transform);
-
-                var pos = GetPosFromObj(kvp.Value);
-                if(pos != Vector2.zero)
-                    bullets[kvp.Key].localPosition = pos;
-            }
         }
-        NetworkController.Instance.RequestUnknownObjs(unknownObjs);
+    }
+
+    HashSet<string> GetDiffKeys(IEnumerable<string> firstDict, IEnumerable<string> secondDict)
+    {
+        var firstDictSet = new HashSet<string>(firstDict);
+        var secondDictSet = new HashSet<string>(secondDict);
+        firstDictSet.ExceptWith(secondDictSet);
+        return firstDictSet;
     }
 
     Vector2 GetPosFromObj(object obj)
@@ -281,6 +378,12 @@ public class WorldDrawer : MonoBehaviour
 
     void OnGUI()
     {
+        if (playerLabelStyle == null)
+        {
+            playerLabelStyle = new GUIStyle(GUI.skin.label);
+            playerLabelStyle.alignment = TextAnchor.MiddleCenter;
+        }
+
         Rect curRect = scoreRect;
         foreach (var val in players.Values)
         {
@@ -290,7 +393,7 @@ public class WorldDrawer : MonoBehaviour
             var labelNameRect = scoreRect;
             Vector2 screenPos = Camera.main.WorldToScreenPoint(val.Transform.position);
             labelNameRect.center = new Vector2(screenPos.x , Screen.height - screenPos.y - labelNameOffset);
-            GUI.Label(labelNameRect, val.Name);
+            GUI.Label(labelNameRect, val.Name, playerLabelStyle);
         }
     }
 }

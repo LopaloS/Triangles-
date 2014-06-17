@@ -82,6 +82,10 @@ public class Joystick : ControllInput
             Position = Vector2.zero;
         else
             Position = -posRelJoyCenter / halfRectSizePixels;
+#if UNITY_EDITOR || UNITY_STANDALONE
+        if (!Input.GetMouseButton(0))
+            Position = Vector2.zero;
+#endif
 
         if (SendPosition != null)
             SendPosition(Position);

@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class Menu : MonoBehaviour 
+public class GameController : MonoBehaviour 
 {
     [SerializeField]
     Joystick joystick;
@@ -88,12 +88,21 @@ public class Menu : MonoBehaviour
         {
             joystick.RingTexture = texGenerator.GetTexture(256, 120, Color.white);
             joystick.JoyTexture = texGenerator.GetTexture(64, 0, Color.white);
-            joystick.SendPosition += NetworkController.Instance.SendMoveVector;
         }
 
         if (button != null)
-        {
             button.Texture = texGenerator.GetTexture(80, 0, Color.white);
+
+        if (joystick != null && button != null)
+            StartCoroutine(UpdateControls());
+    }
+
+    IEnumerator UpdateControls()
+    {
+        while (true)
+        {
+            NetworkController.Instance.SendMoveVector(joystick.Position, button.IsPresed);
+            yield return null;
         }
     }
 

@@ -36,5 +36,9 @@ public class Button : ControllInput
             IsPresed = true;
         else
             IsPresed = false;
+#if UNITY_EDITOR || UNITY_STANDALONE
+        if (!Input.GetMouseButton(0))
+            IsPresed = false;
+#endif
     }
 }

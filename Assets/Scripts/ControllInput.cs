@@ -3,7 +3,7 @@ using System.Collections;
 
 public class ControllInput : MonoBehaviour
 {
-    public Vector2 Pos
+    protected Vector2 Pos
     {
         get
         {

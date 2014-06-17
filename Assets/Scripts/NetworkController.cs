@@ -84,7 +84,7 @@ public class NetworkController
             webSocket.Close();
     }
 
-    public void SendMoveVector(Vector2 pos)
+    public void SendMoveVector(Vector2 pos, bool isFire)
     {
         float[] vec = new float[2];
         vec[0] = pos.magnitude;
@@ -93,7 +93,7 @@ public class NetworkController
         message.Add("cmd", "user.commands");
         var args = new Dictionary<string, object>();
         args.Add("move_vector", vec);
-        args.Add("fire", true);
+        args.Add("fire", isFire);
         message.Add("args", args);
 
         SendObject(message);
