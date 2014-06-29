@@ -59,8 +59,6 @@ public class WorldDrawer : MonoBehaviour
             levelTransform = levelRect.transform;
             brokenLine = levelRect.GetComponent<BrokenLineBasic>();
         }
-
-        
     }
 
     

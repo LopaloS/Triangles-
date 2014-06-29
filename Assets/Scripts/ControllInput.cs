@@ -3,25 +3,35 @@ using System.Collections;
 
 public class ControllInput : MonoBehaviour
 {
-    protected Vector2 Pos
+    protected Vector2[] TouchPositions
     {
         get
         {
 #if UNITY_EDITOR || UNITY_STANDALONE
-            pos = Input.mousePosition;
+            return new Vector2[]{ Input.mousePosition};
 #else
-        if (Input.touches.Length == 0) return Vector2.zero;
-        var touch = Input.touches[0];
-        pos = touch.position;
+        if (Input.touches.Length == 0) 
+            return new Vector2[]{ Vector2.zero};
+        Vector2[] touches = new Vector2[Input.touches.Length];
+        for (int i = 0; i < Input.touches.Length; i++ )
+        {
+            touches[i] = Input.touches[i].position;
+        }
+        return touches;
 #endif
-            return pos;
         }
     }
-    protected Vector2 InvertYpos
+
+    protected Vector2[] InvertYTouchPositions
     {
         get
         {
-            return new Vector2(Pos.x, Screen.height - Pos.y);
+            Vector2[] invertYPosArr = new Vector2[TouchPositions.Length];
+            for (int i = 0; i < TouchPositions.Length; i++)
+            {
+                invertYPosArr[i] = new Vector2(TouchPositions[i].x, Screen.height - TouchPositions[i].y);
+            }
+            return invertYPosArr;
         }
     }
 
@@ -29,7 +39,6 @@ public class ControllInput : MonoBehaviour
     protected Vector2 posOnScreen = new Vector2(0.1f, 0.1f);
 
     protected Vector2 posOnScreenInPixels;
-    Vector2 pos = Vector2.zero;
 
     protected void Init()
     {

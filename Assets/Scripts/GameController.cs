@@ -24,7 +24,7 @@ public class GameController : MonoBehaviour
     Rect addressLabel;
     Rect addressField;
 
-    string address = "ws://localhost:9000/"; //"ws://89.252.17.39:9000/";
+    string address = "ws://localhost:9000/";
     string playerName = string.Empty;
     bool isInit = false;
     bool startGame = false;
@@ -38,6 +38,9 @@ public class GameController : MonoBehaviour
         nameField = GetWidgetRect(nameFieldSize, 0.24f);
         
         buttonRect = GetWidgetRect(buttonsSize, 0.5f);
+
+        address = PlayerPrefs.GetString("url", address);
+        playerName = PlayerPrefs.GetString("playerName", playerName);
 	}
 
     Rect GetWidgetRect(Vector2 size, float yPos)
@@ -76,6 +79,9 @@ public class GameController : MonoBehaviour
 
     void StartGame()
     {
+        PlayerPrefs.SetString("url", address);
+        PlayerPrefs.SetString("playerName", playerName);
+
         StartCoroutine(WaitInit());
         NetworkController.Instance.Init(address, playerName);
         startGame = true;
@@ -91,10 +97,14 @@ public class GameController : MonoBehaviour
         }
 
         if (button != null)
-            button.Texture = texGenerator.GetTexture(80, 0, Color.white);
+            button.Texture = texGenerator.GetTexture(256, 120, Color.white);
 
         if (joystick != null && button != null)
+        {
+            joystick.enabled = true;
+            button.enabled = true;
             StartCoroutine(UpdateControls());
+        }
     }
 
     IEnumerator UpdateControls()

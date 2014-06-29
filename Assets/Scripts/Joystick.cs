@@ -36,18 +36,18 @@ public class Joystick : ControllInput
 
     Vector2 joyRectOffset;
     Rect joyRect;
-
+    Vector2 touchPosOnScreen;
 
     // Use this for initialization
-    void Start()
+    void OnEnable()
     {
         Init();
-        float ringRectSizePixels = Screen.height * ringSize;
+        float ringRectSizePixels = Screen.width * ringSize;
         halfRectSizePixels = ringRectSizePixels / 2;
         ringRect = new Rect(0, 0, ringRectSizePixels, ringRectSizePixels);
         ringRect.center = posOnScreenInPixels;
-
-        float joyRectSizeInPixels = Screen.height * joySize;
+        
+        float joyRectSizeInPixels = Screen.width * joySize;
         joyRect = new Rect(0, 0, joyRectSizeInPixels, joyRectSizeInPixels);
         joyRect.center = posOnScreenInPixels;
     }
@@ -58,7 +58,7 @@ public class Joystick : ControllInput
         GUI.Label(ringRect, ringTexture);
         if (Position != Vector2.zero)
         {
-            joyRect.center = InvertYpos;
+            joyRect.center = touchPosOnScreen;
         }
         else
             joyRect.center = posOnScreenInPixels;
@@ -68,26 +68,24 @@ public class Joystick : ControllInput
     // Update is called once per frame
     void Update()
     {
-        //print(Position);
-
-
-        if (Pos == Vector2.zero)
+        for (int i = 0; i <  TouchPositions.Length; i++)
         {
-            Position = Vector2.zero;
-            return;
-        }
-
-        Vector2 posRelJoyCenter = new Vector2( posOnScreenInPixels.x, Screen.height - posOnScreenInPixels.y) - Pos;
-        if (posRelJoyCenter.magnitude > halfRectSizePixels)
-            Position = Vector2.zero;
-        else
-            Position = -posRelJoyCenter / halfRectSizePixels;
+            Vector2 posRelJoyCenter = new Vector2(posOnScreenInPixels.x, Screen.height - posOnScreenInPixels.y) - TouchPositions[i];
+            if (posRelJoyCenter.magnitude > halfRectSizePixels)
+                Position = Vector2.zero;
+            else
+                Position = -posRelJoyCenter / halfRectSizePixels;
 #if UNITY_EDITOR || UNITY_STANDALONE
-        if (!Input.GetMouseButton(0))
-            Position = Vector2.zero;
+            if (!Input.GetMouseButton(0))
+                Position = Vector2.zero;
 #endif
-
-        if (SendPosition != null)
-            SendPosition(Position);
+            if (Position != Vector2.zero)
+            {
+                if (SendPosition != null)
+                    SendPosition(Position);
+                touchPosOnScreen = InvertYTouchPositions[i];
+                break;
+            }
+        }
     }
 }

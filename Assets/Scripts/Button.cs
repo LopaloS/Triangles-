@@ -8,23 +8,22 @@ public class Button : ControllInput
         get { return texture; }
         set { texture = value; }
     }
-    public bool IsPresed {get; set;}
+    public bool IsPresed { get; set; }
 
     [SerializeField]
     Texture texture;
 
     [SerializeField]
-    Vector2 size = new Vector2(0.1f, 0.1f);
+    Vector2 size = new Vector2(0.2f, 0.2f);
 
     Vector2 sizeInPixels;
-
     Rect rect;
 
-    void Start()
+    void OnEnable()
     {
         Init();
         IsPresed = false;
-        sizeInPixels = size * Screen.height;
+        sizeInPixels = size * Screen.width;
         rect = new Rect(0, 0, sizeInPixels.x, sizeInPixels.y);
         rect.center = posOnScreenInPixels;
     }
@@ -32,13 +31,21 @@ public class Button : ControllInput
     void OnGUI()
     {
         GUI.Label(rect, texture);
-        if (rect.Contains(InvertYpos))
-            IsPresed = true;
-        else
-            IsPresed = false;
 #if UNITY_EDITOR || UNITY_STANDALONE
         if (!Input.GetMouseButton(0))
+        {
             IsPresed = false;
+            return;
+        }
 #endif
+        foreach (var pos in InvertYTouchPositions)
+        {
+            if (rect.Contains(pos))
+            {
+                IsPresed = true;
+                return;
+            }
+        }
+        IsPresed = false;
     }
 }

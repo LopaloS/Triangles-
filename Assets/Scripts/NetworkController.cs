@@ -123,10 +123,7 @@ public class NetworkController
     void OnMessageHandler(object sender, MessageEventArgs args)
     {
         string data = args.Data;
-        
         var tempDict = jsonReader.Read<Dictionary<string, object>>(data);
-        if ((string)tempDict["cmd"] != "world.tick")
-            Debug.Log(data);
         
         switch ((string)tempDict["cmd"])
         {
